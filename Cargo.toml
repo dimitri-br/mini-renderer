@@ -1,0 +1,31 @@
+[package]
+name = "minirenderer"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+# Graphics
+winit = "0.29.15"
+wgpu = { version = "0.19.4", features = ["spirv"] }
+wgpu-types = "0.19.2"
+image = "0.25.0"
+tobj = "4.0.2"
+encase =  { version = "0.7.0", features = ["nalgebra"] }
+
+# Logging
+env_logger = "0.11.3"
+log = "0.4"
+
+# Utils
+pollster = "0.3"
+bytemuck = { version = "1.12", features = [ "derive" ] }
+anyhow = "1.0.82"
+
+# Math
+nalgebra = "0.32.5"
+
+# Random
+rand = "0.8.5"
+async-trait = "0.1.80"
