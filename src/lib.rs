@@ -7,5 +7,6 @@ mod renderer;
 mod pipeline;
 mod utils;
 mod managers;
+mod uniform;
 
 pub use renderer::Renderer;

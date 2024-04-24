@@ -64,8 +64,8 @@ impl Material{
     pub fn bind_material<'a>(&'a self, resource_manager: &'a ResourceManager, render_pass: &mut wgpu::RenderPass<'a>){
         for (i, texture) in self.textures.values().enumerate(){
             let texture = resource_manager.get_texture(texture).unwrap();
-            let texture_bind_group = texture.get_bind_group();
-            //render_pass.set_bind_group(i as u32, &texture_bind_group, &[]);
+            let texture_bind_group = texture.borrow_bind_group();
+            render_pass.set_bind_group(i as u32, &texture_bind_group, &[]);
         }
     }
 

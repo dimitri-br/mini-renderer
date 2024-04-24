@@ -1,4 +1,4 @@
-use log::info;
+use log::{error, info};
 use crate::utils::{handle::Handle, mut_handle::MutHandle};
 
 pub struct Texture {
@@ -19,6 +19,10 @@ impl Texture {
 
     pub fn get_bind_group(&self) -> Handle<wgpu::BindGroup> {
         self.bind_group.clone()
+    }
+
+    pub fn borrow_bind_group(&self) -> &Handle<wgpu::BindGroup> {
+        &self.bind_group
     }
 
     pub fn get_bind_group_layout(&self) -> Handle<wgpu::BindGroupLayout> {
@@ -67,7 +71,7 @@ impl Texture {
             // The layout of the texture
             wgpu::ImageDataLayout {
                 offset: 0,
-                bytes_per_row: Some(4 * dimensions.0), // 4 due to RGBA (num channels)
+                bytes_per_row: Some(4 * dimensions.0),
                 rows_per_image: Some(dimensions.1),
             },
             size,
@@ -79,14 +83,9 @@ impl Texture {
             address_mode_v: wgpu::AddressMode::ClampToEdge,
             address_mode_w: wgpu::AddressMode::ClampToEdge,
             mag_filter: wgpu::FilterMode::Linear,
-            min_filter: wgpu::FilterMode::Linear,
-            mipmap_filter: wgpu::FilterMode::Linear,
-            lod_min_clamp: 0.0,
-            lod_max_clamp: 100.0,
-            compare: None,
-            anisotropy_clamp: 1,
-            border_color: None,
-            label: Some("Texture Sampler"),
+            min_filter: wgpu::FilterMode::Nearest,
+            mipmap_filter: wgpu::FilterMode::Nearest,
+            ..Default::default()
         });
 
         let bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
@@ -230,6 +229,7 @@ impl Texture {
     // It is assumed screen textures do not store any data
     // and are instead written to.
     pub fn resize_screen_texture(&mut self, device: &wgpu::Device, sc_desc: MutHandle<wgpu::SurfaceConfiguration>) {
+        error!("Resizing screen texture");
         let sc_desc = sc_desc.get();
 
         self.size = wgpu::Extent3d {

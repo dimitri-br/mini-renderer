@@ -1,31 +1,36 @@
-// Vertex Shader
+struct VertexInput {
+    @location(0) position: vec3<f32>,
+    @location(1) normal: vec3<f32>,
+    @location(2) texCoords: vec2<f32>,
+};
+
 struct VertexOutput {
     @builtin(position) clip_position: vec4<f32>,
-    @location(0) color: vec4<f32>
+    @location(0) texCoords: vec2<f32>
 };
 
 @vertex
-fn vertex_main(@builtin(vertex_index) vertex_index: u32) -> VertexOutput {
-    var positions = array<vec2<f32>, 3>(
-        vec2<f32>(0.0, 0.5),  // Top of the triangle
-        vec2<f32>(-0.5, -0.5),  // Left bottom corner of the triangle
-        vec2<f32>(0.5, -0.5)  // Right bottom corner of the triangle
-    );
-
-    var colors = array<vec4<f32>, 3>(
-        vec4<f32>(1.0, 0.0, 0.0, 1.0),  // Red
-        vec4<f32>(0.0, 1.0, 0.0, 1.0),  // Green
-        vec4<f32>(0.0, 0.0, 1.0, 1.0)  // Blue
-    );
-
+fn vertex_main(vertex_input: VertexInput) -> VertexOutput {
+    var scaled_position: vec3<f32> = vertex_input.position * 0.1;  // Scale down the position by 0.1
     var output: VertexOutput;
-    output.clip_position = vec4<f32>(positions[vertex_index], 0.0, 1.0);
-    output.color = colors[vertex_index];
+    output.clip_position = vec4<f32>(scaled_position, 1.0);  // Convert position to vec4 with w=1
+    output.texCoords = vertex_input.texCoords;  // Pass texture coordinates to fragment shader
     return output;
 }
 
-// Fragment Shader
+
+
+@group(0) @binding(0)
+var diffuse: texture_2d<f32>;
+@group(0) @binding(1)
+var diffuse_sampler: sampler;
+
+struct FragmentInput {
+    @location(0) texCoords: vec2<f32>
+};
+
 @fragment
-fn fragment_main(@location(0) color: vec4<f32>) -> @location(0) vec4<f32> {
-    return color;  // Output the color passed from the vertex shader
+fn fragment_main(input: FragmentInput) -> @location(0) vec4<f32> {
+    let color = textureSample(diffuse, diffuse_sampler, input.texCoords);
+    return color;  // Output the color sampled from the texture
 }

@@ -191,15 +191,11 @@ impl Renderer{
                         let vertex_buffers = rm.get_mesh_vertex_buffers(mesh_handle).unwrap();
                         let index_buffers = rm.get_mesh_index_buffers(mesh_handle).unwrap();
 
-                        for (i, vertex_buffer) in vertex_buffers.iter().enumerate(){
-                            vertex_buffer.bind_vertex_buffer(i as u32, &mut render_pass)
+                        for (idx, submesh) in mesh.get_sub_meshes().iter().enumerate(){
+                            vertex_buffers[idx].bind_vertex_buffer(0, &mut render_pass);
+                            index_buffers[idx].bind_index_buffer(&mut render_pass);
+                            submesh.render(&mut render_pass);
                         }
-
-                        for (_, index_buffer) in index_buffers.iter().enumerate(){
-                            index_buffer.bind_index_buffer(&mut render_pass)
-                        }
-
-                        mesh.render(&mut render_pass);
                     }
                 }
             }

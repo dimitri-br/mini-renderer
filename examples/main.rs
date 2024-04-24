@@ -9,14 +9,14 @@ fn main() {
     let resource_manager_handle = renderer.get_resource_manager();
     let mut resource_manager = resource_manager_handle.get();
 
-    let mesh_handle = resource_manager.load_mesh("assets/meshes/cube.obj");
+    let mesh_handle = resource_manager.load_mesh("assets/meshes/cube.glb");
 
     // Load a texture
     let texture_handle = resource_manager.load_texture("assets/textures/cube.jpeg");
 
     // Create a material
     let material_handle = resource_manager.create_material();
-    //resource_manager.assign_texture_to_material(&material_handle, &texture_handle, "diffuse_texture");
+    resource_manager.assign_texture_to_material(&material_handle, &texture_handle, "diffuse_texture");
 
     // Create a model
     let model_handle = resource_manager.create_model(&mesh_handle, &material_handle);

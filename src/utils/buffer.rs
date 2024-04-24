@@ -16,6 +16,13 @@ pub struct Buffer{
     pub buffer: wgpu::Buffer,
     pub size: usize,
     pub buffer_type: BufferType,
+    
+    /* 
+     * Bind group layout and bind group
+     * Used for uniform buffers
+     */
+    bind_group_layout: Option<wgpu::BindGroupLayout>,
+    bind_group: Option<wgpu::BindGroup>,
 }
 
 impl Buffer{
@@ -38,11 +45,55 @@ impl Buffer{
         );
 
         info!("Buffer created");
+        
+        let bind_group_layout = match buffer_type{
+            BufferType::Uniform => Some(device.create_bind_group_layout(
+                &wgpu::BindGroupLayoutDescriptor{
+                    label: Some("Uniform Buffer Bind Group Layout"),
+                    entries: &[
+                        wgpu::BindGroupLayoutEntry{
+                            binding: 0,
+                            visibility: wgpu::ShaderStages::VERTEX | wgpu::ShaderStages::FRAGMENT,
+                            ty: wgpu::BindingType::Buffer {
+                                ty: wgpu::BufferBindingType::Uniform,
+                                has_dynamic_offset: false,
+                                min_binding_size: None,
+                            },
+                            count: None,
+                        }
+                    ],
+                }
+            )),
+            _ => None,
+        };
+        
+        let bind_group = match buffer_type{
+            BufferType::Uniform => Some(device.create_bind_group(
+                &wgpu::BindGroupDescriptor{
+                    label: Some("Uniform Buffer Bind Group"),
+                    layout: bind_group_layout.as_ref().unwrap(),
+                    entries: &[
+                        wgpu::BindGroupEntry{
+                            binding: 0,
+                            resource: wgpu::BindingResource::Buffer(wgpu::BufferBinding{
+                                buffer: &buffer,
+                                offset: 0,
+                                size: None,
+                            }),
+                        }
+                    ],
+                }
+            )),
+            _ => None,
+        };
 
         Self{
             buffer,
             size: data.len(),
             buffer_type,
+            
+            bind_group_layout,
+            bind_group,
         }
     }
 
@@ -58,6 +109,10 @@ impl Buffer{
 
     pub fn bind_index_buffer<'a>(&'a self, render_pass: &mut wgpu::RenderPass<'a>) {
         render_pass.set_index_buffer(self.buffer.slice(..), wgpu::IndexFormat::Uint32);
+    }
+    
+    pub fn bind_uniform_buffer<'a>(&'a self, index: u32, render_pass: &mut wgpu::RenderPass<'a>) {
+        render_pass.set_bind_group(index, self.bind_group.as_ref().unwrap(), &[]);
     }
 }
 

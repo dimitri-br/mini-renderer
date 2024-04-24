@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use log::info;
+use log::{error, info};
 use crate::utils::handle::Handle;
 use crate::managers::shader_manager::ShaderManager;
 use crate::pipeline::Pipeline;
@@ -32,6 +32,7 @@ pub struct ResourceManager{
     meshes: HashMap<ResourceHandle, Mesh>,
     mesh_vertex_buffers: HashMap<ResourceHandle, Vec<Buffer>>,
     mesh_index_buffers: HashMap<ResourceHandle, Vec<Buffer>>,
+    mesh_instance_buffers: HashMap<ResourceHandle, Option<Vec<Buffer>>>, // Optional instance buffers
 
     textures: HashMap<ResourceHandle, Texture>,
     materials: HashMap<ResourceHandle, Material>,
@@ -50,6 +51,7 @@ impl ResourceManager{
             meshes: HashMap::new(),
             mesh_vertex_buffers: HashMap::new(),
             mesh_index_buffers: HashMap::new(),
+            mesh_instance_buffers: HashMap::new(),
 
             textures: HashMap::new(),
             materials: HashMap::new(),
@@ -67,7 +69,16 @@ impl ResourceManager{
     ///
     /// Loads a mesh from a file and returns a handle to it
     pub fn load_mesh(&mut self, path: &str) -> ResourceHandle{
-        let mesh = Mesh::load_obj(path);
+        // Check if the path is an obj or fbx
+        let mesh = if path.ends_with(".obj"){
+            Mesh::load_obj(path)
+        }else if path.ends_with(".gltf") || path.ends_with(".glb"){
+            Mesh::load_gltf(path)
+        }else{
+            error!("Unsupported mesh format");
+            panic!("Unsupported mesh format")
+        };
+
         let handle = ResourceHandle::new(ResourceType::Mesh);
 
         // We need to create a buffer for each submesh
@@ -249,23 +260,23 @@ impl ResourceManager{
     pub(crate) fn get_all_mesh_handles(&self) -> Vec<ResourceHandle>{
         self.meshes.keys().cloned().collect()
     }
-    
+
     pub(crate) fn get_all_texture_handles(&self) -> Vec<ResourceHandle>{
         self.textures.keys().cloned().collect()
     }
-    
+
     pub(crate) fn get_all_material_handles(&self) -> Vec<ResourceHandle>{
         self.materials.keys().cloned().collect()
     }
-    
+
     pub(crate) fn get_all_model_handles(&self) -> Vec<ResourceHandle>{
         self.models.keys().cloned().collect()
     }
-    
+
     pub(crate) fn get_all_shader_handles(&self) -> Vec<ResourceHandle>{
         self.shader_manager.get_all_shader_handles()
     }
-    
+
     pub(crate) fn get_all_pipeline_handles(&self) -> Vec<ResourceHandle>{
         self.pipeline_manager.get_all_pipeline_handles()
     }

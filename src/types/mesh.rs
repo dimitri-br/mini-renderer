@@ -1,4 +1,4 @@
-use std::ops::Range;
+use std::fs::File;
 use log::{error, info};
 use wgpu::RenderPass;
 use crate::types::{instance::Instance, vertex::Vertex};
@@ -128,6 +128,72 @@ impl Mesh{
         }
     }
 
+    pub(crate) fn load_gltf<T: AsRef<std::path::Path>>(path: T) -> Self {
+        let (document, buffers, _) = gltf::import(path.as_ref()).unwrap_or_else(
+            |e| {
+                error!("Failed to load gltf file: {} {}", e, path.as_ref().parent().unwrap().display());
+                panic!("Failed to load gltf file: {} {}", e, path.as_ref().display());
+            }
+        );
+
+        let mut sub_meshes = Vec::new();
+
+        for mesh in document.meshes() {
+            for primitive in mesh.primitives() {
+                let reader = primitive.reader(|buffer| Some(&buffers[buffer.index()]));
+
+                let positions: Vec<[f32; 3]> = reader
+                    .read_positions()
+                    .unwrap()
+                    .map(|pos| pos.into())
+                    .collect();
+
+                let normals: Vec<[f32; 3]> = reader
+                    .read_normals()
+                    .unwrap()
+                    .map(|norm| norm.into())
+                    .collect();
+
+                // Tex coords
+                let tex_coords: Vec<[f32; 2]> = reader
+                    .read_tex_coords(0)
+                    .unwrap()
+                    .into_f32()
+                    .map(|tex| tex.into())
+                    .collect();
+
+                // Get the tex coord type
+                info!("{:?}", tex_coords);
+
+                let indices: Vec<u32> = if let Some(iter) = reader.read_indices() {
+                    iter.into_u32().collect()
+                } else {
+                    Vec::new()
+                };
+
+                let vertices = positions.iter().zip(normals.iter()).zip(tex_coords.iter())
+                    .map(|((pos, norm), tex)| Vertex {
+                        position: *pos,
+                        normal: *norm,
+                        tex_coords: *tex,
+                    })
+                    .collect();
+
+                let sub_mesh = SubMesh::new(vertices, indices);
+                sub_meshes.push(sub_mesh);
+            }
+        }
+
+        let vertex_buffer_layouts = vec![Vertex::desc()];  // Assuming Vertex::desc() is properly defined elsewhere
+        let mesh_layout = MeshLayout::new(vertex_buffer_layouts, wgpu::IndexFormat::Uint32);
+
+        Mesh {
+            sub_meshes,
+            instances: Vec::new(),  // Handle instances based on your specific use case
+            layout: mesh_layout,
+        }
+    }
+
     pub fn get_sub_meshes(&self) -> &Vec<SubMesh>{
         &self.sub_meshes
     }
@@ -147,5 +213,12 @@ impl<'a> Renderable<'a> for Mesh{
             let indices_count = sub_mesh.get_indices_count();
             render_pass.draw_indexed(0..indices_count as u32, 0, 0..1);
         }
+    }
+}
+
+impl<'a> Renderable<'a> for SubMesh{
+    fn render<'b>(&'b self, render_pass: &'a mut RenderPass<'b>) {
+        let indices_count = self.get_indices_count();
+        render_pass.draw_indexed(0..indices_count as u32, 0, 0..1);
     }
 }

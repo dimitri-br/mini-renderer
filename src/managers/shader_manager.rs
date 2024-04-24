@@ -24,7 +24,7 @@ impl ShaderManager{
                     source: wgpu::ShaderSource::Wgsl(source.into())
             }
         );
-
+        
         self.shaders.insert(handle.clone(), shader);
         handle
     }

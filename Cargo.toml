@@ -11,8 +11,11 @@ winit = "0.29.15"
 wgpu = { version = "0.19.4", features = ["spirv"] }
 wgpu-types = "0.19.2"
 image = "0.25.0"
-tobj = "4.0.2"
 encase =  { version = "0.7.0", features = ["nalgebra"] }
+
+# Models
+tobj = "4.0.2"
+gltf = "1.4.0"
 
 # Logging
 env_logger = "0.11.3"
