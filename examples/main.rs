@@ -24,6 +24,7 @@ fn main() {
     info!("Model handle: {:?}", model_handle);
     // Load a shader
     let shader_handle = resource_manager.load_shader(include_str!("../assets/shaders/shader.wgsl"));
+    let _ = resource_manager.load_shader(include_str!("../assets/shaders/temp_shader.wgsl"));
 
     info!("Shader handle: {:?}", shader_handle);
 

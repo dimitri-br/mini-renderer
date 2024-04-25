@@ -57,7 +57,7 @@ impl ResourceManager{
             materials: HashMap::new(),
             models: HashMap::new(),
 
-            shader_manager: ShaderManager::new(),
+            shader_manager: ShaderManager::new(device.clone()),
             pipeline_manager: PipelineManager::new(),
 
             _device: device,
@@ -144,15 +144,19 @@ impl ResourceManager{
     /// Assigns a shader to a material
     pub fn assign_shader_to_material(&mut self, material_handle: &ResourceHandle, shader_handle: &ResourceHandle){
         let material = self.materials.get_mut(material_handle).unwrap();
-
-        material.set_shader(shader_handle.clone());
+        
+        if let Some(bindings) = self.shader_manager.get_shader_bindings(shader_handle){
+            material.set_shader(shader_handle.clone(), bindings);
+        }else{
+            error!("Shader bindings not found");
+        }
     }
 
     /// # Load Shader
     ///
     /// Loads a shader from a file and returns a handle to it
     pub fn load_shader(&mut self, path: &str) -> ResourceHandle{
-        self.shader_manager.create_shader(&self._device, path)
+        self.shader_manager.create_shader(path)
     }
 
     /// # Create Model
@@ -183,7 +187,7 @@ impl ResourceManager{
             &self._device,
             mesh.get_layout(),
             bind_group_layouts,
-            shader,
+            &shader,
             material.get_shader().clone()
         );
 
@@ -218,7 +222,7 @@ impl ResourceManager{
         self.models.get(handle)
     }
 
-    pub(crate) fn get_shader(&self, handle: &ResourceHandle) -> Option<&wgpu::ShaderModule>{
+    pub(crate) fn get_shader(&self, handle: &ResourceHandle) -> Option<wgpu::ShaderModule>{
         self.shader_manager.get_shader(handle)
     }
 

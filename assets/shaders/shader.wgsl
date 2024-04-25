@@ -32,5 +32,5 @@ struct FragmentInput {
 @fragment
 fn fragment_main(input: FragmentInput) -> @location(0) vec4<f32> {
     let color = textureSample(diffuse, diffuse_sampler, input.texCoords);
-    return color;  // Output the color sampled from the texture
+    return vec4<f32>(color.r, color.g, color.b, color.a);
 }

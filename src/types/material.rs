@@ -2,13 +2,22 @@ use std::collections::HashMap;
 use crate::utils::handle::Handle;
 use crate::managers::resource_handle::ResourceHandle;
 use crate::managers::resource_manager::{ResourceManager, ResourceType};
+use crate::utils::shader_reflect::Binding;
 
 pub struct Material{
     // Textures
     textures: HashMap<String, ResourceHandle>,
+    texture_bind_group_layouts: Vec<Handle<wgpu::BindGroupLayout>>,
+    texture_bind_groups: Vec<Handle<wgpu::BindGroup>>,
+
+    // Uniforms
+    uniforms: HashMap<String, ResourceHandle>,
+    uniform_bind_group_layouts: Vec<Handle<wgpu::BindGroupLayout>>,
+    uniform_bind_groups: Vec<Handle<wgpu::BindGroup>>,
 
     // Shader
     shader_handle: Option<ResourceHandle>,   // Handle to the shader used by this material
+    shader_bindings: Option<HashMap<String, Binding>>,
 
     // Acceptable pipelines
     pipelines: Vec<ResourceHandle>
@@ -18,7 +27,15 @@ impl Material{
     pub fn new() -> Self{
         Self{
             textures: HashMap::new(),
+            texture_bind_group_layouts: Vec::new(),
+            texture_bind_groups: Vec::new(),
+            
+            uniforms: HashMap::new(),
+            uniform_bind_group_layouts: Vec::new(),
+            uniform_bind_groups: Vec::new(),
+            
             shader_handle: None, // Just a dummy handle for now
+            shader_bindings: None, // we assign when we assign the shader
             pipelines: Vec::new()
         }
     }
@@ -31,8 +48,9 @@ impl Material{
         self.textures.get(name)
     }
 
-    pub fn set_shader(&mut self, shader: ResourceHandle){
+    pub fn set_shader(&mut self, shader: ResourceHandle, bindings: HashMap<String, Binding>){
         self.shader_handle = Some(shader);
+        self.shader_bindings = Some(bindings);
     }
 
     pub fn get_shader(&self) -> ResourceHandle{

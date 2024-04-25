@@ -32,3 +32,4 @@ nalgebra = "0.32.5"
 # Random
 rand = "0.8.5"
 async-trait = "0.1.80"
+regex = "1.10.4"

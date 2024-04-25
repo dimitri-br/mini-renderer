@@ -14,7 +14,6 @@ use winit::raw_window_handle::HasWindowHandle;
 pub struct Handle<T>{
     inner: NonNull<RawHandle<T>>,
     phantom: PhantomData<RawHandle<T>>
-
 }
 
 pub struct RawHandle<T>{

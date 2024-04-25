@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-use std::sync::Arc;
 use log::error;
 use wgpu::StoreOp;
 use winit::event::{Event, WindowEvent};
@@ -10,9 +9,7 @@ use crate::surface_wrapper::SurfaceWrapper;
 
 use winit::window::{Window, WindowBuilder};
 use winit::event_loop::{ControlFlow, EventLoop};
-use winit::raw_window_handle::HasWindowHandle;
 use crate::managers::resource_handle::ResourceHandle;
-use crate::pipeline::Pipeline;
 use crate::managers::resource_manager::ResourceManager;
 use crate::types::renderable::Renderable;
 
@@ -104,7 +101,9 @@ impl Renderer{
         //
         // The materials can be checked by checking the material's shader against the pipeline's shader
 
+        // Pipeline - List of materials that use the pipeline
         let mut pipeline_materials: HashMap<ResourceHandle, Vec<ResourceHandle>> = HashMap::new();
+        // Material, and the meshes that want to use that material
         let mut material_meshes: HashMap<ResourceHandle, Vec<ResourceHandle>> = HashMap::new();
 
         let pipeline_handles = rm.get_all_pipeline_handles();

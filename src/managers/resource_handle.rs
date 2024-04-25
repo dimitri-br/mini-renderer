@@ -1,3 +1,4 @@
+use std::marker::PhantomData;
 use std::sync::atomic;
 use std::ptr::NonNull;
 use super::resource_manager::ResourceType;
@@ -6,6 +7,7 @@ use super::resource_manager::ResourceType;
 pub struct ResourceHandle {
     ptr: NonNull<ResourceHandleRaw>,
     resource_type: ResourceType,
+    phantom_data: PhantomData<ResourceHandleRaw>
 }
 
 pub struct ResourceHandleRaw{
@@ -23,6 +25,7 @@ impl ResourceHandle{
         Self{
             ptr: NonNull::new(ptr).unwrap(),
             resource_type,
+            phantom_data: PhantomData
         }
     }
 
@@ -49,6 +52,7 @@ impl Clone for ResourceHandle{
         Self{
             ptr: self.ptr,
             resource_type: self.resource_type.clone(),
+            phantom_data: PhantomData
         }
     }
 }

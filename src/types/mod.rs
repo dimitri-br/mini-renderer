@@ -7,3 +7,4 @@ pub mod mesh;
 pub mod texture;
 pub mod model;
 pub mod renderable;
+pub mod shader;
