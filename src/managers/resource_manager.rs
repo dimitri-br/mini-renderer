@@ -6,6 +6,7 @@ use crate::pipeline::Pipeline;
 use crate::types::material::Material;
 use crate::types::model::Model;
 use crate::types::mesh::Mesh;
+use crate::types::shader::Shader;
 use crate::types::texture::Texture;
 use crate::utils::buffer::*;
 
@@ -122,7 +123,7 @@ impl ResourceManager{
     ///
     /// Creates a new material and returns a handle to it
     pub fn create_material(&mut self) -> ResourceHandle{
-        let material = Material::new();
+        let material = Material::new(self._device.clone());
         let handle = ResourceHandle::new(ResourceType::Material);
 
         self.materials.insert(handle.clone(), material);
@@ -187,7 +188,7 @@ impl ResourceManager{
             &self._device,
             mesh.get_layout(),
             bind_group_layouts,
-            &shader,
+            shader,
             material.get_shader().clone()
         );
 
@@ -222,7 +223,7 @@ impl ResourceManager{
         self.models.get(handle)
     }
 
-    pub(crate) fn get_shader(&self, handle: &ResourceHandle) -> Option<wgpu::ShaderModule>{
+    pub(crate) fn get_shader(&self, handle: &ResourceHandle) -> Option<&Shader>{
         self.shader_manager.get_shader(handle)
     }
 

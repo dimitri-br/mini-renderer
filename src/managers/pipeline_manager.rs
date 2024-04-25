@@ -4,6 +4,7 @@ use crate::utils::handle::Handle;
 use crate::pipeline::{Pipeline, PipelineBuildSettings};
 use crate::types::material::Material;
 use crate::types::mesh::MeshLayout;
+use crate::types::shader::Shader;
 use super::resource_handle::ResourceHandle;
 use super::resource_manager::{ResourceManager, ResourceType};
 
@@ -20,7 +21,7 @@ impl PipelineManager{
 
     pub fn create_or_get_pipeline(&mut self, device: &wgpu::Device, mesh_layout: &MeshLayout,
                                   material_bind_groups: Vec<Handle<wgpu::BindGroupLayout>>,
-                                  shader: &wgpu::ShaderModule,
+                                  shader: &Shader,
                                   shader_handle: ResourceHandle) -> ResourceHandle {
         let mut config = PipelineBuildSettings::new()
             .use_depth(false);

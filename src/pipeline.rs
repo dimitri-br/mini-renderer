@@ -1,6 +1,9 @@
+use std::ops::Deref;
 use log::error;
 use crate::managers::resource_handle::ResourceHandle;
 use crate::types::renderable::Renderable;
+use crate::types::shader::Shader;
+use crate::utils::handle::Handle;
 
 pub struct Pipeline{
     uuid: u64,
@@ -19,7 +22,7 @@ pub struct PipelineBuildSettings<'a>{
     uuid: u64,
     pub vertex_descriptors: Vec<wgpu::VertexBufferLayout<'static>>,
     pub bind_groups: Vec<&'a wgpu::BindGroupLayout>,
-    pub shader: Option<&'a wgpu::ShaderModule>,
+    pub shader: Option<&'a Shader>,
     pub use_depth: bool,
 }
 
@@ -27,7 +30,15 @@ pub struct PipelineBuildSettings<'a>{
 impl Pipeline{
     pub fn new(device: &wgpu::Device, settings: PipelineBuildSettings, shader_handle: ResourceHandle) -> Self{
         let uuid = settings.get_uuid();
-        let layout = Self::create_layout(device, &settings.bind_groups);
+
+        let bind_group_layouts = settings.shader.unwrap_or_else(
+            ||{
+                error!("No shader provided for pipeline creation.");
+                panic!("No shader provided for pipeline creation.");
+            }
+        ).get_bind_group_layouts();
+
+        let layout = Self::create_layout(device, bind_group_layouts);
 
         // If we don't have a shader, panic
         let shader = settings.shader.unwrap_or_else(||{
@@ -45,16 +56,17 @@ impl Pipeline{
         }
     }
     
-    fn create_layout(device: &wgpu::Device, bind_group_layouts: &Vec<&wgpu::BindGroupLayout>) -> wgpu::PipelineLayout{
+    fn create_layout(device: &wgpu::Device, bind_group_layouts: Vec<Handle<wgpu::BindGroupLayout>>) -> wgpu::PipelineLayout{
+        let layouts = bind_group_layouts.iter().map(|layout| layout.deref()).collect::<Vec<_>>();
         device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor{
             label: Some("Pipeline Layout"),
-            bind_group_layouts: &bind_group_layouts,
+            bind_group_layouts: &layouts,
             push_constant_ranges: &[],
         })
     }
 
     fn create_pipeline(device: &wgpu::Device, layout: wgpu::PipelineLayout,
-                       shader: &wgpu::ShaderModule,
+                       shader: &Shader,
                         vertex_buffer_layouts: Vec<wgpu::VertexBufferLayout>,
                         use_depth: bool) -> wgpu::RenderPipeline {
 
@@ -74,16 +86,18 @@ impl Pipeline{
             }
         };
 
+        let shader_module = shader.compile(&device);
+
         device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
             label: Some("Render Pipeline"),
             layout: Some(&layout),
             vertex: wgpu::VertexState {
-                module: &shader,
+                module: &shader_module,
                 entry_point: "vertex_main",
                 buffers: &vertex_buffer_layouts,
             },
             fragment: Some(wgpu::FragmentState {
-                module: &shader,
+                module: &shader_module,
                 entry_point: "fragment_main",
                 targets: &[Some(wgpu::ColorTargetState {
                     format: wgpu::TextureFormat::Bgra8UnormSrgb,
@@ -136,7 +150,7 @@ impl<'a> PipelineBuildSettings<'a>{
         self
     }
 
-    pub fn set_shader(mut self, shader: &'a wgpu::ShaderModule) -> Self{
+    pub fn set_shader(mut self, shader: &'a Shader) -> Self{
         self.shader = Some(shader);
         self
     }

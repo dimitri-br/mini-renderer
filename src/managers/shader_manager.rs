@@ -24,7 +24,7 @@ impl ShaderManager{
             ResourceType::Shader
         );
         
-        let mut shader = Shader::new(source);
+        let mut shader = Shader::new(self._device.clone(), source);
 
         shader.generate_bindings();
         
@@ -32,8 +32,8 @@ impl ShaderManager{
         handle
     }
 
-    pub fn get_shader(&self, handle: &ResourceHandle) -> Option<wgpu::ShaderModule>{
-        Some(self.shaders.get(handle).unwrap().compile(handle.clone(), &self._device))
+    pub fn get_shader(&self, handle: &ResourceHandle) -> Option<&Shader>{
+        self.shaders.get(handle)
     }
 
     pub fn get_shader_bindings(&self, handle: &ResourceHandle) -> Option<HashMap<String, Binding>>{

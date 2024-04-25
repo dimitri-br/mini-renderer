@@ -18,6 +18,23 @@ pub struct Binding{
     binding_type: BindingType
 }
 
+impl Binding{
+    pub fn get_group(&self) -> u32{
+        self.group
+    }
+
+    pub fn get_binding(&self) -> u32{
+        self.binding
+    }
+
+    pub fn get_name(&self) -> String{
+        self.name.clone()
+    }
+
+    pub fn get_binding_type(&self) -> BindingType{
+        self.binding_type.clone()
+    }
+}
 
 
 pub struct ShaderReflect{
