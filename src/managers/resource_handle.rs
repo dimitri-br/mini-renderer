@@ -82,3 +82,9 @@ impl std::fmt::Debug for ResourceHandle{
         write!(f, "ResourceHandle({})", self.get_uuid())
     }
 }
+
+impl Default for ResourceHandle{
+    fn default() -> Self{
+        Self::new(ResourceType::None)
+    }
+}

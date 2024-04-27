@@ -85,6 +85,20 @@ impl Material{
         self.needs_regen = true;
     }
 
+    /// Set Material
+    ///
+    /// To be used when the parameter is being set during render time
+    /// for switching between params for each model for example
+    pub fn set_uniform(&mut self, name: &str, uniform_handle: ResourceHandle, resource_manager: &ResourceManager){
+        //  This will only be used when the material is being set during render time,
+        // so we assume the bind groups are already generated
+        // Update the buffer
+        let buffer_handle = self.bind_group_buffers.get(name).unwrap();
+        let uniform = resource_manager.get_uniform_buffer(&uniform_handle).unwrap();
+        
+        buffer_handle.copy_buffer(&self._device, &self._queue, uniform.get_buffer());
+    }
+
     pub fn get_texture(&self, name: &str) -> Option<&ResourceHandle>{
         self.textures.get(name)
     }

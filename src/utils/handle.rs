@@ -5,6 +5,7 @@ use std::sync::{Arc, atomic};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use wgpu::rwh::{DisplayHandle, HandleError, WindowHandle};
 use winit::raw_window_handle::HasWindowHandle;
+use crate::ResourceHandle;
 
 /// # Handle
 ///

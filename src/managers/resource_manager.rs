@@ -1,13 +1,16 @@
 use std::collections::HashMap;
+use std::ops::Deref;
 use log::{error, info};
 use crate::utils::handle::Handle;
 use crate::managers::shader_manager::ShaderManager;
 use crate::pipeline::Pipeline;
+use crate::Transform;
 use crate::types::material::Material;
 use crate::types::model::Model;
 use crate::types::mesh::Mesh;
 use crate::types::shader::Shader;
 use crate::types::texture::Texture;
+use crate::types::transform::TransformUniform;
 use crate::uniform::uniform_buffer::UniformBuffer;
 use crate::utils::buffer::*;
 use crate::utils::mut_handle::MutHandle;
@@ -20,6 +23,7 @@ use super::resource_handle::ResourceHandle;
 /// Represents the type of a resource
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
 pub enum ResourceType{
+    None,
     Mesh,
     Texture,
     Material,
@@ -67,6 +71,27 @@ impl ResourceManager{
             
             _device: device,
             _queue: queue
+        }
+    }
+
+    pub(crate) fn update_model_transforms(&mut self){
+        let mut to_update = Vec::new();
+        for model in self.models.values().cloned(){
+            let transform = model.get_transform();
+            let transform_uniform_handle = model.get_transform_uniform_handle();
+            let transform_uniform = TransformUniform::new(&transform.clone());
+            
+            to_update.push((transform_uniform_handle, transform_uniform));
+        }
+        
+        for (handle, data) in to_update{
+            self.update_uniform_buffer(&handle, data);
+        }
+    }
+    
+    pub(crate) fn update_materials(&mut self){
+        for mut material in self.materials.values().cloned(){
+            material.update(self);
         }
     }
 
@@ -181,10 +206,13 @@ impl ResourceManager{
     /// # Create Model
     ///
     /// Creates a new model and returns a handle to it
-    pub fn create_model(&mut self, mesh_handle: &ResourceHandle, material_handle: &ResourceHandle) -> ResourceHandle{
+    pub fn create_model(&mut self, mesh_handle: &ResourceHandle, material_handle: &ResourceHandle, transform: Transform) -> ResourceHandle{
         let handle = ResourceHandle::new(ResourceType::Model);
 
-        let model = Model::new(mesh_handle.clone(), material_handle.clone());
+        // Create the uniform buffer for the model transform
+        let transform_handle = self.create_uniform_buffer::<TransformUniform>(transform.clone().into());
+
+        let model = Model::new(mesh_handle.clone(), material_handle.clone(), transform.clone(), transform_handle.clone());
 
         self.models.insert(handle.clone(), Handle::new(model));
 
@@ -271,14 +299,6 @@ impl ResourceManager{
         &self.materials.get(handle).unwrap()
     }
 
-    pub(crate) fn get_model(&self, handle: &ResourceHandle) -> Option<Handle<Model>>{
-        self.models.get(handle).cloned()
-    }
-
-    pub(crate) fn borrow_model(&self, handle: &ResourceHandle) -> &Model{
-        &self.models.get(handle).unwrap()
-    }
-
     pub(crate) fn get_shader(&self, handle: &ResourceHandle) -> Option<&Shader>{
         self.shader_manager.get_shader(handle)
     }
@@ -346,3 +366,23 @@ impl ResourceManager{
         self.pipeline_manager.get_all_pipeline_handles()
     }
 }
+
+/* Model functions */
+impl ResourceManager{
+    pub(crate) fn get_model(&self, handle: &ResourceHandle) -> Option<Handle<Model>>{
+        self.models.get(handle).cloned()
+    }
+
+    pub(crate) fn borrow_model(&self, handle: &ResourceHandle) -> &Model{
+        &self.models.get(handle).unwrap()
+    }
+
+    pub fn get_model_transform(&self, handle: &ResourceHandle) -> Handle<Transform>{
+        self.models.get(handle).unwrap().get_transform()
+    }
+
+    pub fn get_model_transform_uniform_handle(&self, handle: &ResourceHandle) -> ResourceHandle{
+        self.models.get(handle).unwrap().get_transform_uniform_handle()
+    }
+}
+

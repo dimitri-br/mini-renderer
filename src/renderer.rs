@@ -11,9 +11,39 @@ use winit::window::{Window, WindowBuilder};
 use winit::event_loop::{ControlFlow, EventLoop};
 use crate::managers::resource_handle::ResourceHandle;
 use crate::managers::resource_manager::ResourceManager;
+use crate::types::model::Model;
 use crate::types::renderable::Renderable;
 
-type RenderHandle = usize;
+
+pub struct RenderFramework<T>{
+    state: T, // Persistent state
+    init: fn(&mut T, &mut Renderer) -> (),
+    update: fn(&mut T, &mut Renderer) -> (),
+    renderer: Renderer
+}
+
+impl<T> RenderFramework<T>{
+    pub fn new(
+        state: T,
+        renderer: Renderer,
+        init: fn(&mut T, &mut Renderer) -> (),
+        update: fn(&mut T, &mut Renderer) -> (),
+    ) -> Self{
+        Self{
+            state,
+            init,
+            update,
+            renderer
+        }
+    }
+
+    pub fn run(mut self){
+        (self.init)(&mut self.state, &mut self.renderer);
+        self.renderer.run(self.state, self.update);
+    }
+}
+
+
 
 pub struct Renderer{
     instance_handler: InstanceHandle,
@@ -46,6 +76,7 @@ impl Renderer{
 
         let window = WindowBuilder::new()
             .with_title("Renderer")
+            .with_inner_size(winit::dpi::PhysicalSize::new(1600, 1200))
             .build(&event_loop).unwrap_or_else(
                 |e| {
                     error!("Failed to create window: {}", e);
@@ -89,7 +120,7 @@ impl Renderer{
 
     pub(crate) fn render(&mut self){
 
-        let mut rm = self.resource_manager.get();
+        let rm = self.resource_manager.get();
 
         let models = rm.get_all_models();
 
@@ -104,7 +135,7 @@ impl Renderer{
         // Pipeline - List of materials that use the pipeline
         let mut pipeline_materials: HashMap<ResourceHandle, Vec<ResourceHandle>> = HashMap::new();
         // Material, and the meshes that want to use that material
-        let mut material_meshes: HashMap<ResourceHandle, Vec<ResourceHandle>> = HashMap::new();
+        let mut material_meshes: HashMap<ResourceHandle, Vec<Handle<Model>>> = HashMap::new();
 
         let pipeline_handles = rm.get_all_pipeline_handles();
         let material_handles = rm.get_all_material_handles();
@@ -134,7 +165,7 @@ impl Renderer{
         // We don't care about the pipeline at this point, as we can get it from the material
         for model in models.iter(){
             let materials = material_meshes.entry(model.get_material().clone()).or_insert_with(Vec::new);
-            materials.push(model.get_mesh().clone());
+            materials.push(model.clone());
         }
 
         // Now we have a set of materials linked to pipelines, and a set of materials linked to meshes
@@ -190,13 +221,22 @@ impl Renderer{
 
                 for material_handle in materials.iter(){
                     let material = rm.borrow_material(material_handle);
-                    material.bind_material(&mut render_pass);
 
-                    for mesh_handle in material_meshes.get(material_handle).unwrap_or(&Vec::new()).iter(){
-                        let mesh = rm.get_mesh(mesh_handle).unwrap();
+                    for model in material_meshes.get(material_handle).unwrap_or(&Vec::new()).iter(){
+                        let mesh = rm.get_mesh(model.get_mesh()).unwrap();
 
-                        let vertex_buffers = rm.get_mesh_vertex_buffers(mesh_handle).unwrap();
-                        let index_buffers = rm.get_mesh_index_buffers(mesh_handle).unwrap();
+                        let vertex_buffers = rm.get_mesh_vertex_buffers(model.get_mesh()).unwrap();
+                        let index_buffers = rm.get_mesh_index_buffers(model.get_mesh()).unwrap();
+
+                        let mut temp_update_material = rm.get_material(material_handle).unwrap();
+                        temp_update_material.set_uniform("transform", model.get_transform_uniform_handle(), &rm);
+
+                        info!("Setting transform!");
+                        let transform = model.get_transform();
+                        info!("Transform: {:?}", transform.get_position());
+
+                        material.bind_material(&mut render_pass);
+
 
                         for (idx, submesh) in mesh.get_sub_meshes().iter().enumerate(){
                             vertex_buffers[idx].bind_vertex_buffer(0, &mut render_pass);
@@ -213,8 +253,9 @@ impl Renderer{
         frame.present();
     }
 
-    pub fn run(mut self){
+    pub fn run<T>(mut self, mut render_state: T, render_func: fn(&mut T, &mut Renderer) -> ()){
         let event_loop = self.event_loop.take().unwrap();
+
         // Run the event loop, without blocking the current thread
         event_loop.run(move |event, target| {
             target.set_control_flow(ControlFlow::Poll);
@@ -240,6 +281,18 @@ impl Renderer{
                                 self.window.request_redraw();
                             }
                             WindowEvent::RedrawRequested => {
+                                // Run the render closure
+                                render_func(&mut render_state, &mut self);
+
+                                // Update resources here, as they may have changed
+                                // We need a closure so we drop the mutable borrow of the resource manager
+                                {
+                                    let mut rm = self.resource_manager.get();
+                                    rm.update_model_transforms();
+                                    rm.update_materials();
+                                }
+
+
                                 self.render();
                             }
                             _ => {}

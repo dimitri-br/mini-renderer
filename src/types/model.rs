@@ -1,15 +1,22 @@
 use crate::managers::resource_handle::ResourceHandle;
+use crate::Transform;
+use crate::utils::handle::Handle;
 
 pub struct Model{
     mesh: ResourceHandle,
-    material: ResourceHandle
+    material: ResourceHandle,
+
+    transform: Handle<Transform>,
+    transform_uniform_handle: ResourceHandle
 }
 
 impl Model{
-    pub fn new(mesh: ResourceHandle, material: ResourceHandle) -> Self{
+    pub fn new(mesh: ResourceHandle, material: ResourceHandle, transform: Transform, transform_uniform_handle: ResourceHandle) -> Self{
         Self{
             mesh,
-            material
+            material,
+            transform: Handle::new(transform),
+            transform_uniform_handle
         }
     }
 
@@ -20,4 +27,13 @@ impl Model{
     pub fn get_material(&self) -> &ResourceHandle{
         &self.material
     }
+
+    pub fn get_transform(&self) -> Handle<Transform>{
+        self.transform.clone()
+    }
+
+    pub fn get_transform_uniform_handle(&self) -> ResourceHandle{
+        self.transform_uniform_handle.clone()
+    }
 }
+
