@@ -19,10 +19,18 @@ fn vertex_main(vertex_input: VertexInput) -> VertexOutput {
 }
 
 
+// Color uniform
+struct Color {
+    color: vec4<f32>
+}
 
 @group(0) @binding(0)
+var<uniform> color: Color;
+
+
+@group(1) @binding(0)
 var diffuse: texture_2d<f32>;
-@group(0) @binding(1)
+@group(1) @binding(1)
 var diffuse_sampler: sampler;
 
 struct FragmentInput {
@@ -31,6 +39,6 @@ struct FragmentInput {
 
 @fragment
 fn fragment_main(input: FragmentInput) -> @location(0) vec4<f32> {
-    let color = textureSample(diffuse, diffuse_sampler, input.texCoords);
+    let color = textureSample(diffuse, diffuse_sampler, input.texCoords) * color.color;
     return vec4<f32>(color.r, color.g, color.b, color.a);
 }

@@ -8,7 +8,9 @@ use crate::types::model::Model;
 use crate::types::mesh::Mesh;
 use crate::types::shader::Shader;
 use crate::types::texture::Texture;
+use crate::uniform::uniform_buffer::UniformBuffer;
 use crate::utils::buffer::*;
+use crate::utils::mut_handle::MutHandle;
 
 use super::pipeline_manager::PipelineManager;
 use super::resource_handle::ResourceHandle;
@@ -35,9 +37,10 @@ pub struct ResourceManager{
     mesh_index_buffers: HashMap<ResourceHandle, Vec<Buffer>>,
     mesh_instance_buffers: HashMap<ResourceHandle, Option<Vec<Buffer>>>, // Optional instance buffers
 
-    textures: HashMap<ResourceHandle, Texture>,
-    materials: HashMap<ResourceHandle, Material>,
-    models: HashMap<ResourceHandle, Model>,
+    textures: HashMap<ResourceHandle, Handle<Texture>>,
+    materials: HashMap<ResourceHandle, Handle<Material>>,
+    models: HashMap<ResourceHandle, Handle<Model>>,
+    uniforms: HashMap<ResourceHandle, Handle<UniformBuffer>>,
 
     shader_manager: ShaderManager,
     pipeline_manager: PipelineManager,
@@ -57,10 +60,11 @@ impl ResourceManager{
             textures: HashMap::new(),
             materials: HashMap::new(),
             models: HashMap::new(),
+            uniforms: HashMap::new(),
 
             shader_manager: ShaderManager::new(device.clone()),
             pipeline_manager: PipelineManager::new(),
-
+            
             _device: device,
             _queue: queue
         }
@@ -114,7 +118,7 @@ impl ResourceManager{
         let texture = Texture::load_from_file(&self._device, &self._queue, path);
         let handle = ResourceHandle::new(ResourceType::Texture);
 
-        self.textures.insert(handle.clone(), texture);
+        self.textures.insert(handle.clone(), Handle::new(texture));
 
         handle
     }
@@ -123,10 +127,10 @@ impl ResourceManager{
     ///
     /// Creates a new material and returns a handle to it
     pub fn create_material(&mut self) -> ResourceHandle{
-        let material = Material::new(self._device.clone());
+        let material = Material::new(self._device.clone(), self._queue.clone());
         let handle = ResourceHandle::new(ResourceType::Material);
 
-        self.materials.insert(handle.clone(), material);
+        self.materials.insert(handle.clone(), Handle::new(material));
 
         handle
     }
@@ -134,6 +138,10 @@ impl ResourceManager{
     /// # Assign Texture to Material
     ///
     /// Assigns a texture to a material
+    ///
+    /// The name is important. This is the name of the texture in the shader
+    /// The sampler is assumed to be called <strong>`texture_name`</strong>_sampler,
+    /// where `texture_name` is the name of the texture
     pub fn assign_texture_to_material(&mut self, material_handle: &ResourceHandle, texture_handle: &ResourceHandle, name: &str){
         let material = self.materials.get_mut(material_handle).unwrap();
 
@@ -145,12 +153,22 @@ impl ResourceManager{
     /// Assigns a shader to a material
     pub fn assign_shader_to_material(&mut self, material_handle: &ResourceHandle, shader_handle: &ResourceHandle){
         let material = self.materials.get_mut(material_handle).unwrap();
-        
+
         if let Some(bindings) = self.shader_manager.get_shader_bindings(shader_handle){
             material.set_shader(shader_handle.clone(), bindings);
         }else{
             error!("Shader bindings not found");
         }
+    }
+
+
+    /// # Assign Uniform to Material
+    ///
+    /// Assigns a uniform buffer to a material
+    pub fn assign_uniform_to_material(&mut self, material_handle: &ResourceHandle, uniform_handle: &ResourceHandle, name: &str){
+        let material = self.materials.get_mut(material_handle).unwrap();
+
+        material.add_uniform(name, uniform_handle.clone());
     }
 
     /// # Load Shader
@@ -168,7 +186,7 @@ impl ResourceManager{
 
         let model = Model::new(mesh_handle.clone(), material_handle.clone());
 
-        self.models.insert(handle.clone(), model);
+        self.models.insert(handle.clone(), Handle::new(model));
 
         handle
     }
@@ -179,10 +197,11 @@ impl ResourceManager{
     pub fn create_pipeline(&mut self, mesh_handle: &ResourceHandle, material_handle: &ResourceHandle) -> ResourceHandle{
         let mesh = self.meshes.get(mesh_handle).unwrap();
         let material = self.materials.get(material_handle).unwrap();
-        let bind_group_layouts = material.get_bind_group_layouts(self);
         let shader = self.shader_manager.get_shader(&material.get_shader()).unwrap_or_else(
             || panic!("Shader not found")
         );
+
+        let bind_group_layouts = shader.get_bind_group_layouts();
 
         let pipeline_handle = self.pipeline_manager.create_or_get_pipeline(
             &self._device,
@@ -193,6 +212,31 @@ impl ResourceManager{
         );
 
         pipeline_handle
+    }
+
+
+    /// # Create Uniform Buffer
+    ///
+    /// Creates a new uniform buffer and returns a handle to it
+    pub fn create_uniform_buffer<T: AsBytes + 'static>(&mut self, data: T) -> ResourceHandle{
+        let handle = ResourceHandle::new(ResourceType::Material);
+
+        let buffer = UniformBuffer::new(self._device.clone(), data, "Uniform Buffer");
+
+        self.uniforms.insert(handle.clone(), Handle::new(buffer));
+
+        handle
+    }
+
+    /// # Update Uniform Buffer
+    ///
+    /// Updates the data in a uniform buffer
+    pub fn update_uniform_buffer<T: AsBytes + 'static>(&mut self, handle: &ResourceHandle, data: T){
+        let buffer = self.uniforms.get_mut(handle).unwrap();
+
+        buffer.set_data(data);
+
+        buffer.update(&self._queue);
     }
 }
 
@@ -211,16 +255,28 @@ impl ResourceManager{
         self.mesh_index_buffers.get(handle)
     }
 
-    pub(crate) fn get_texture(&self, handle: &ResourceHandle) -> Option<&Texture>{
-        self.textures.get(handle)
+    pub(crate) fn get_texture(&self, handle: &ResourceHandle) -> Option<Handle<Texture>>{
+        self.textures.get(handle).cloned()
     }
 
-    pub(crate) fn get_material(&self, handle: &ResourceHandle) -> Option<&Material>{
-        self.materials.get(handle)
+    pub(crate) fn borrow_texture(&self, handle: &ResourceHandle) -> &Texture{
+        &self.textures.get(handle).unwrap()
     }
 
-    pub(crate) fn get_model(&self, handle: &ResourceHandle) -> Option<&Model>{
-        self.models.get(handle)
+    pub(crate) fn get_material(&self, handle: &ResourceHandle) -> Option<Handle<Material>>{
+        self.materials.get(handle).cloned()
+    }
+
+    pub(crate) fn borrow_material(&self, handle: &ResourceHandle) -> &Material{
+        &self.materials.get(handle).unwrap()
+    }
+
+    pub(crate) fn get_model(&self, handle: &ResourceHandle) -> Option<Handle<Model>>{
+        self.models.get(handle).cloned()
+    }
+
+    pub(crate) fn borrow_model(&self, handle: &ResourceHandle) -> &Model{
+        &self.models.get(handle).unwrap()
     }
 
     pub(crate) fn get_shader(&self, handle: &ResourceHandle) -> Option<&Shader>{
@@ -229,6 +285,10 @@ impl ResourceManager{
 
     pub(crate) fn get_pipeline(&self, handle: &ResourceHandle) -> Option<&Pipeline>{
         self.pipeline_manager.get_pipeline(handle)
+    }
+
+    pub(crate) fn get_uniform_buffer(&self, handle: &ResourceHandle) -> Option<Handle<UniformBuffer>>{
+        self.uniforms.get(handle).cloned()
     }
 
     pub(crate) fn get_all_meshes(&self) -> Vec<&Mesh>{
@@ -243,16 +303,16 @@ impl ResourceManager{
         self.mesh_index_buffers.values().collect()
     }
 
-    pub(crate) fn get_all_textures(&self) -> Vec<&Texture>{
-        self.textures.values().collect()
+    pub(crate) fn get_all_textures(&self) -> Vec<Handle<Texture>>{
+        self.textures.values().cloned().collect()
     }
 
-    pub(crate) fn get_all_materials(&self) -> Vec<&Material>{
-        self.materials.values().collect()
+    pub(crate) fn get_all_materials(&self) -> Vec<Handle<Material>>{
+        self.materials.values().cloned().collect()
     }
 
-    pub(crate) fn get_all_models(&self) -> Vec<&Model>{
-        self.models.values().collect()
+    pub(crate) fn get_all_models(&self) -> Vec<Handle<Model>>{
+        self.models.values().cloned().collect()
     }
 
     pub(crate) fn get_all_pipelines(&self) -> Vec<&Pipeline>{

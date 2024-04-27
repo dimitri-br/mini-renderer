@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use log::error;
+use log::{error, info};
 use wgpu::StoreOp;
 use winit::event::{Event, WindowEvent};
 use crate::device_handle::DeviceHandle;
@@ -89,7 +89,7 @@ impl Renderer{
 
     pub(crate) fn render(&mut self){
 
-        let rm = self.resource_manager.get();
+        let mut rm = self.resource_manager.get();
 
         let models = rm.get_all_models();
 
@@ -109,12 +109,20 @@ impl Renderer{
         let pipeline_handles = rm.get_all_pipeline_handles();
         let material_handles = rm.get_all_material_handles();
 
+        // Generate bind groups for all the materials
+        for material_handle in material_handles.iter(){
+            let mut material = rm.get_material(material_handle).unwrap();
+            material.generate_bind_groups(&rm);
+        }
+
+
         // Populate the pipeline_materials hashmap, and link the materials to the pipelines
         for pipeline_handle in pipeline_handles.iter(){
             let pipeline = rm.get_pipeline(pipeline_handle).unwrap();
             let shader = pipeline.get_shader();
             for material_handle in material_handles.iter(){
                 let material = rm.get_material(material_handle).unwrap();
+
                 if material.get_shader() == shader{
                     let materials = pipeline_materials.entry(pipeline_handle.clone()).or_insert_with(Vec::new);
                     materials.push(material_handle.clone());
@@ -181,8 +189,8 @@ impl Renderer{
                 pipeline.render(&mut render_pass);
 
                 for material_handle in materials.iter(){
-                    let material = rm.get_material(material_handle).unwrap();
-                    material.bind_material(&rm, &mut render_pass);
+                    let material = rm.borrow_material(material_handle);
+                    material.bind_material(&mut render_pass);
 
                     for mesh_handle in material_meshes.get(material_handle).unwrap_or(&Vec::new()).iter(){
                         let mesh = rm.get_mesh(mesh_handle).unwrap();

@@ -1,5 +1,5 @@
 use std::marker::PhantomData;
-use std::ops::Deref;
+use std::ops::{Deref, DerefMut};
 use std::ptr::NonNull;
 use std::sync::{Arc, atomic};
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -11,6 +11,7 @@ use winit::raw_window_handle::HasWindowHandle;
 /// A thread-safe handle to a value
 ///
 /// * `T` - The type of the value
+#[derive(Debug)]
 pub struct Handle<T>{
     inner: NonNull<RawHandle<T>>,
     phantom: PhantomData<RawHandle<T>>
@@ -50,6 +51,14 @@ impl<T> Deref for Handle<T>{
     fn deref(&self) -> &Self::Target{
         unsafe{
             &self.inner.as_ref().inner
+        }
+    }
+}
+
+impl<T> DerefMut for Handle<T>{
+    fn deref_mut(&mut self) -> &mut Self::Target{
+        unsafe{
+            &mut self.inner.as_mut().inner
         }
     }
 }

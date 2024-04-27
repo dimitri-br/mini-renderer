@@ -2,7 +2,6 @@ use log::info;
 // Helpful buffer utilities
 use wgpu::util::DeviceExt;
 
-
 #[derive(Debug, Clone, Copy)]
 pub enum BufferType{
     Vertex,
@@ -38,7 +37,7 @@ impl Buffer{
                     BufferType::Vertex => wgpu::BufferUsages::VERTEX,
                     BufferType::Index => wgpu::BufferUsages::INDEX,
                     BufferType::Instance => wgpu::BufferUsages::VERTEX,
-                    BufferType::Uniform => wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+                    BufferType::Uniform => wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::COPY_SRC,
                     BufferType::Storage => wgpu::BufferUsages::STORAGE,
                 },
             }
@@ -121,6 +120,16 @@ impl Buffer{
         queue.write_buffer(&self.buffer, 0, data);
     }
 
+    pub fn copy_buffer(&self, device: &wgpu::Device, queue: &wgpu::Queue, buffer: &wgpu::Buffer){
+        let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor{
+            label: Some("Buffer Copy Encoder"),
+        });
+
+        encoder.copy_buffer_to_buffer(&buffer, 0, &self.buffer, 0, self.size as wgpu::BufferAddress);
+
+        queue.submit(std::iter::once(encoder.finish()));
+    }
+
     pub fn update_from_type<T: AsBytes>(&self, queue: &wgpu::Queue, data: &T){
         self.update(queue, data.as_bytes());
     }
@@ -136,6 +145,10 @@ impl Buffer{
     pub fn get_size(&self) -> usize{
         self.size
     }
+    
+    pub fn get_buffer(&self) -> &wgpu::Buffer{
+        &self.buffer
+    }
 }
 
 impl Drop for Buffer{
@@ -150,6 +163,12 @@ impl Drop for Buffer{
 /// Must be implemented for types that are used in buffers.
 pub trait AsBytes {
     fn as_bytes(&self) -> &[u8];
+}
+
+impl AsBytes for &[u8]{
+    fn as_bytes(&self) -> &[u8]{
+        *self
+    }
 }
 
 impl AsBytes for &[u32] {

@@ -37,6 +37,7 @@ impl Pipeline{
                 panic!("No shader provided for pipeline creation.");
             }
         ).get_bind_group_layouts();
+        
 
         let layout = Self::create_layout(device, bind_group_layouts);
 
